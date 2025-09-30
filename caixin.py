@@ -159,6 +159,7 @@ def download_magazine(session:requests.Session, url, magazine_path):
     soup = BeautifulSoup(rsp.text, 'html.parser')
     main_conntent = soup.find("div", class_ = "mainMagContent")
     title = main_conntent.find("div", class_ = "title").get_text()
+    main_conntent.find("div", class_ = "date").decompose()
     cover = main_conntent.find("div", class_ = "cover")
     img = cover.find("img")
     src = img.get("src")
