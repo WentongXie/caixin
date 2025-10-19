@@ -81,7 +81,6 @@ def download_article(session:requests.Session, path, article_id, title):
     with open(file_name, "w", encoding="utf") as f:
         f.write(template.format(title = title, content = str(soup)))
 
-
 def download_articles(article_list, path):
     ser = webdriver.ChromeService(executable_path="chromedriver.exe")
     #ser = webdriver.EdgeService(executable_path="msedgedriver.exe")
@@ -97,41 +96,44 @@ def download_articles(article_list, path):
         time.sleep(60)
         for article in article_list:
             logging.info(article)
-            try:
-                content = getContent(driver, "{}?p0".format(article["href"].strip()))
-            except:
-                logging.error("Exception: %s", traceback.format_exc())
-                logging.error(article)
-                continue
-            soup = BeautifulSoup(content, 'html.parser')
-            aitt = soup.find_all("p", class_ = "aitt")
-            for i in aitt:
-                i.decompose()
-            imgs = soup.find_all("img")
-            for img in imgs:
-                src = img.get("src")
-                src = src.strip()
-                if src == "https://www.caixin.com/favicon.ico":
-                    img["src"] = "/favicon.ico"
-                    continue
-                urlparse = urllib.parse.urlparse(src)
-                basename = "{}_{}".format(article["article_id"], os.path.basename(urlparse.path))
-                basename = basename.strip()
-                img_path = os.path.join(path, basename)
-                try:
-                    download_img(src, img_path)
-                except:
-                    logging.error("Exception: %s", traceback.format_exc())
-                    logging.error("article: {}, src: {}".format(article, src))
-                    continue
-                img["src"] = urllib.request.pathname2url(basename)
-            file_name = os.path.join(path, "{}.html".format(article["article_id"]))
-            with open(file_name, "w", encoding="utf") as f:
-                f.write(template.format(title = article["title"], content = str(soup)))
+            download_article(driver, article, path)
         driver.close()
     finally:
         driver.quit()
     pass
+
+def download_article(driver, article, path):
+    try:
+        content = getContent(driver, "{}?p0".format(article["href"].strip()))
+    except:
+        logging.error("Exception: %s", traceback.format_exc())
+        logging.error(article)
+        return
+    soup = BeautifulSoup(content, 'html.parser')
+    aitt = soup.find_all("p", class_ = "aitt")
+    for i in aitt:
+        i.decompose()
+    imgs = soup.find_all("img")
+    for img in imgs:
+        src = img.get("src")
+        src = src.strip()
+        if src == "https://www.caixin.com/favicon.ico":
+            img["src"] = "/favicon.ico"
+            continue
+        urlparse = urllib.parse.urlparse(src)
+        basename = "{}_{}".format(article["article_id"], os.path.basename(urlparse.path))
+        basename = basename.strip()
+        img_path = os.path.join(path, basename)
+        try:
+            download_img(src, img_path)
+        except:
+            logging.error("Exception: %s", traceback.format_exc())
+            logging.error("article: {}, src: {}".format(article, src))
+            continue
+        img["src"] = urllib.request.pathname2url(basename)
+    file_name = os.path.join(path, "{}.html".format(article["article_id"]))
+    with open(file_name, "w", encoding="utf") as f:
+        f.write(template.format(title = article["title"], content = str(soup)))
 
 def getContent(driver:webdriver.Chrome, url):
     url = url.strip()
