@@ -1,4 +1,4 @@
-import requests, logging,json, os, urllib, time, traceback
+import requests, logging, json, os, urllib, time, traceback
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -6,6 +6,15 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
+
+class article:
+    def __init__(self, article_id:str, title:str, href:str):
+        self.article_id = article_id.strip()
+        self.title = title.strip()
+        self.href = href.strip()
+
+    def __str__(self):
+        return str(self.__dict__)
 
 template = ""
 header = {
@@ -37,26 +46,6 @@ def download_total(session:requests.Session):
     for i in weeklys:
         download_weekly(session, i["href"])
         logging.info(i)
-'''
-
-def download_img(url, path, cookie = None, session = None):
-    url = url.strip()
-    urlparse = urllib.parse.urlparse(url)
-    if urlparse.scheme == "":
-        urlparse = urlparse._replace(scheme = 'https')
-        url = urllib.parse.urlunparse(urlparse)
-    if session:
-        response = session.get(url)
-    else:
-        header = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
-        }
-        if cookie != None:
-            header["Cookie"] = cookie
-        response = requests.get(url, headers=header)
-    assert response.status_code == 200
-    with open(path, "wb") as f:
-        f.write(response.content)
 
 def download_article(session:requests.Session, path, article_id, title):
     rsp = session.get("http://gateway.caixin.com/api/newauth/checkAuthByIdJsonp?type=0&page=0&id={}".format(article_id))
@@ -80,8 +69,28 @@ def download_article(session:requests.Session, path, article_id, title):
     file_name = os.path.join(path, "{}.html".format(article_id))
     with open(file_name, "w", encoding="utf") as f:
         f.write(template.format(title = title, content = str(soup)))
+'''
 
-def download_articles(article_list, path):
+def download_img(url, file_path, cookie = None, session = None) -> None:
+    url = url.strip()
+    urlparse = urllib.parse.urlparse(url)
+    if urlparse.scheme == "":
+        urlparse = urlparse._replace(scheme = 'https')
+        url = urllib.parse.urlunparse(urlparse)
+    if session:
+        response = session.get(url)
+    else:
+        header = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
+        }
+        if cookie != None:
+            header["Cookie"] = cookie
+        response = requests.get(url, headers=header)
+    assert response.status_code == 200
+    with open(file_path, "wb") as f:
+        f.write(response.content)
+
+def download_articles(article_list: list[article], dir_path: str) -> None:
     ser = webdriver.ChromeService(executable_path="chromedriver.exe")
     #ser = webdriver.EdgeService(executable_path="msedgedriver.exe")
     #options = webdriver.EdgeOptions()
@@ -96,19 +105,20 @@ def download_articles(article_list, path):
         time.sleep(60)
         for article in article_list:
             logging.info(article)
-            download_article(driver, article, path)
+            download_article(driver, article, dir_path)
         driver.close()
     finally:
         driver.quit()
     pass
 
-def download_article(driver, article, path):
+def download_article(driver: webdriver.Chrome, article: article, dir_path: str) -> None:
     try:
-        content = getContent(driver, "{}?p0".format(article["href"].strip()))
+        content = getContent(driver, "{}?p0".format(article.href))
     except:
         logging.error("Exception: %s", traceback.format_exc())
         logging.error(article)
         return
+    os.makedirs(dir_path, exist_ok=True)
     soup = BeautifulSoup(content, 'html.parser')
     aitt = soup.find_all("p", class_ = "aitt")
     for i in aitt:
@@ -121,9 +131,9 @@ def download_article(driver, article, path):
             img["src"] = "/favicon.ico"
             continue
         urlparse = urllib.parse.urlparse(src)
-        basename = "{}_{}".format(article["article_id"], os.path.basename(urlparse.path))
+        basename = "{}_{}".format(article.article_id, os.path.basename(urlparse.path))
         basename = basename.strip()
-        img_path = os.path.join(path, basename)
+        img_path = os.path.join(dir_path, basename)
         try:
             download_img(src, img_path)
         except:
@@ -131,11 +141,11 @@ def download_article(driver, article, path):
             logging.error("article: {}, src: {}".format(article, src))
             continue
         img["src"] = urllib.request.pathname2url(basename)
-    file_name = os.path.join(path, "{}.html".format(article["article_id"]))
+    file_name = os.path.join(dir_path, "{}.html".format(article.article_id))
     with open(file_name, "w", encoding="utf") as f:
-        f.write(template.format(title = article["title"], content = str(soup)))
+        f.write(template.format(title = article.title, content = str(soup)))
 
-def getContent(driver:webdriver.Chrome, url):
+def getContent(driver: webdriver.Chrome, url: str) -> str:
     url = url.strip()
     driver.get(url)
     try:
@@ -156,7 +166,7 @@ def getContent(driver:webdriver.Chrome, url):
     content = driver.find_element(By.ID, "Main_Content_Val")
     return content.get_attribute("innerHTML")
 
-def download_magazine(session:requests.Session, url, magazine_path):
+def download_magazine(session:requests.Session, url:str, magazine_dir_path:str) -> list[article]:
     rsp = session.get(url)
     soup = BeautifulSoup(rsp.text, 'html.parser')
     main_conntent = soup.find("div", class_ = "mainMagContent")
@@ -168,7 +178,7 @@ def download_magazine(session:requests.Session, url, magazine_path):
     src.strip()
     path = urllib.parse.urlparse(src).path
     img_name = "cover" + path[path.find("."):]
-    img_path = os.path.join(magazine_path, img_name)
+    img_path = os.path.join(magazine_dir_path, img_name)
     download_img(src, img_path)
     img["src"] = urllib.request.pathname2url(img_name)
     cover.clear()
@@ -180,10 +190,11 @@ def download_magazine(session:requests.Session, url, magazine_path):
         if href is None:
             logging.error("article: {} has no link.".format(i))
             continue
+        href = href.strip()
         basename = os.path.basename(urllib.parse.urlparse(href).path)
-        article_list.append({"href": href, "title": i.get_text(), "article_id": os.path.splitext(basename)[0]})
+        article_list.append(article(os.path.splitext(basename)[0], i.get_text(), href))
         i["href"] = urllib.request.pathname2url(basename)
-    with open(os.path.join(magazine_path, "index.html"), "w", encoding="utf") as f:
+    with open(os.path.join(magazine_dir_path, "index.html"), "w", encoding="utf") as f:
         f.write(template.format(title = title, content = str(main_conntent)))
     logging.debug(article_list)
     return article_list
