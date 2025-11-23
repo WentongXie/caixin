@@ -22,6 +22,9 @@ class article:
     def __str__(self):
         return str(self.__dict__)
 
+    def __repr__(self):
+        return str(self.__dict__)
+
 
 template = ""
 header = {
@@ -82,7 +85,7 @@ def download_article(session:requests.Session, path, article_id, title):
 '''
 
 
-def download_img(url, file_path, cookie=None, session=None) -> None:
+def download_img(url: str, file_path: str, cookie: str = None, session: requests.Session = None) -> None:
     url = url.strip()
     urlparse = urllib.parse.urlparse(url)
     if urlparse.scheme == "":
@@ -98,6 +101,7 @@ def download_img(url, file_path, cookie=None, session=None) -> None:
             header["Cookie"] = cookie
         response = requests.get(url, headers=header)
     assert response.status_code == 200
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, "wb") as f:
         f.write(response.content)
 

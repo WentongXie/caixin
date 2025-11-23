@@ -6,6 +6,8 @@ import time
 import json
 import datetime
 import caixin
+import traceback
+from selenium import webdriver
 
 topic_file = "topic.json"
 articles_file = "articles.json"
@@ -20,7 +22,10 @@ class topic_article(caixin.article):
         self.dir_path = dir_path.strip()
 
     def __str__(self):
-        return str(self)
+        return str(self.__dict__)
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 
 def main():
@@ -43,34 +48,69 @@ def main():
             topic_articles = get_articles(s, topic)
             logging.debug("topic: {}, topic_articles: {}".format(
                 topic, topic_articles))
-            topic_html = ""
-            for i in topic_articles:
-                logging.debug("{}".format(i))
-                article_path = urllib.request.pathname2url(
-                    os.path.join(i.dir_path, "{}.html".format(i.article_id)))
-                date_object = datetime.datetime.fromtimestamp(i.time)
-                date = "{}-{:02d}-{:02d}".format(date_object.year,
-                                                 date_object.month, date_object.day)
-                urlparse = urllib.parse.urlparse(i.pics)
-                basename = "{}_{}".format(
-                    i.article_id, os.path.basename(urlparse.path))
-                basename = basename.strip()
-                img_path = urllib.request.pathname2url(
-                    os.path.join(i.dir_path, basename))
-                caixin.download_img(i.pics, os.path.join(
-                    basedir, img_path), session=s)
-                topic_html += topic_html_template.format(
-                    article_path, i.title, date, img_path)
-                downloaded = articles.get(i.article_id, None)
-                if downloaded:
-                    if i.time == downloaded["time"] and i.title == downloaded["title"]:
-                        continue
-                    else:
-                        logging.warning("article change: {}".format(i))
-                download_articles.append(i)
-            with open("{}/{}.html".format(basedir, topic["topic_id"]), "w", encoding="utf-8") as f:
-                f.write(caixin.template.format(
-                    title=topic["topic_title"], content=topic_html))
+            make_topic_html(s, topic_articles, topic, basedir)
+            download_articles.extend(
+                get_download_articles(articles, topic_articles))
+    download_topic_articles(download_articles, articles, basedir)
+
+
+def get_download_articles(downloaded_articles, topic_articles: list[topic_article]) -> list[topic_article]:
+    download_articles = []
+    for i in topic_articles:
+        downloaded = downloaded_articles.get(i.article_id, None)
+        if downloaded:
+            if i.time == downloaded["time"] and i.title == downloaded["title"]:
+                continue
+            else:
+                logging.warning("article change: {}".format(i))
+        download_articles.append(i)
+    return download_articles
+
+
+def make_topic_html(session: requests.Session, topic_articles: list[topic_article], topic, basedir: str) -> None:
+    topic_html = ""
+    for i in topic_articles:
+        logging.debug("{}".format(i))
+        article_path = urllib.request.pathname2url(
+            os.path.join(i.dir_path, "{}.html".format(i.article_id)))
+        date_object = datetime.datetime.fromtimestamp(i.time)
+        date = "{}-{:02d}-{:02d}".format(date_object.year,
+                                         date_object.month, date_object.day)
+        urlparse = urllib.parse.urlparse(i.pics)
+        basename = "{}_{}".format(
+            i.article_id, os.path.basename(urlparse.path))
+        basename = basename.strip()
+        img_path = urllib.request.pathname2url(
+            os.path.join(i.dir_path, basename))
+        caixin.download_img(i.pics, os.path.join(
+            basedir, img_path), session=session)
+        topic_html += topic_html_template.format(
+            article_path, i.title, date, img_path)
+    with open("{}/{}.html".format(basedir, topic["topic_id"]), "w", encoding="utf-8") as f:
+        f.write(caixin.template.format(
+            title=topic["topic_title"], content=topic_html))
+
+
+def download_topic_articles(download_articles: list[topic_article], downloaded_articles, basedir: str):
+    ser = webdriver.ChromeService(executable_path="chromedriver.exe")
+    options = webdriver.ChromeOptions()
+    user_data_dir = os.path.join(os.getcwd(), "UserData")
+    os.makedirs(user_data_dir, exist_ok=True)
+    options.add_argument("user-data-dir={}".format(user_data_dir))
+    try:
+        driver = webdriver.Chrome(service=ser, options=options)
+        for i in download_articles:
+            logging.info(i)
+            caixin.download_article(
+                driver, i, os.path.join(basedir, i.dir_path))
+            downloaded_articles[i.article_id] = i.__dict__
+        driver.close()
+        with open(articles_file, "w", encoding="utf-8") as f:
+            json.dump(downloaded_articles, f, ensure_ascii=False)
+    except:
+        logging.error("Exception: %s", traceback.format_exc())
+    finally:
+        driver.quit()
 
 
 def get_articles(session: requests.Session, topic) -> list[topic_article]:
@@ -98,6 +138,15 @@ def get_articles(session: requests.Session, topic) -> list[topic_article]:
                    href, i["time"], i["pics"], path))
     logging.debug("ret: {}".format(ret))
     return ret
+
+
+def test():
+    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    with requests.session() as s:
+        s.headers.update(caixin.header)
+        topic_articles = get_articles(s, {"topic_id": 1633})
+        logging.info(topic_articles)
 
 
 if __name__ == "__main__":
