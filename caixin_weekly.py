@@ -11,7 +11,7 @@ import caixin
 def main():
     name = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-    logging.basicConfig(filename=name + ".txt",
+    logging.basicConfig(filename=name + ".log",
                         level=logging.INFO, format=LOG_FORMAT, encoding='utf-8')
     with requests.session() as s:
         s.headers.update(caixin.header)
@@ -44,11 +44,18 @@ def update(session: requests.Session):
         href = urllib.parse.urlparse(a.get("href")).path[1:]
         a["href"] = href
         img = i.find("img")
-        path = urllib.parse.urlparse(img.get("data-src")).path
-        img_src = urllib.request.pathname2url(
-            os.path.join(href, "cover" + path[path.find("."):]))
-        img["data-src"] = img_src
-        # img["src"]= img_src
+        img.decompose()
+        # src = img.get("src")
+        # if not src:
+        #    src = img.get("data-src")
+        # path = urllib.parse.urlparse(src).path
+        # img_src = urllib.request.pathname2url(
+        #    os.path.join(href, "cover" + path[path.find("."):]))
+        # img["src"] = img_src
+        # img["max-width"] = "100"
+        # img["max-height"] = "150"
+        # img["height"] = "auto"
+        # img["width"] = "auto"
     focus.find("div", class_="app").decompose()
     mi = focus.find("div", class_="mi")
     new_weekly = mi.find("a")

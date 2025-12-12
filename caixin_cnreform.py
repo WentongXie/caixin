@@ -11,7 +11,7 @@ import caixin
 def main():
     name = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-    logging.basicConfig(filename=name + ".txt",
+    logging.basicConfig(filename=name + ".log",
                         level=logging.INFO, format=LOG_FORMAT, encoding='utf-8')
     with requests.session() as s:
         s.headers.update(caixin.header)
