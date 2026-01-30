@@ -15,13 +15,15 @@ def main():
                         level=logging.INFO, format=LOG_FORMAT, encoding='utf-8')
     with requests.session() as s:
         s.headers.update(caixin.header)
-        # new_weekly = "https://weekly.caixin.com/2025/cw1174/"
+        # new_weekly = "https://weekly.caixin.com/2026/cw1190/"
         new_weekly = update(s)
         weekly_path = urllib.parse.urlparse(new_weekly).path[1:]
         os.makedirs(weekly_path, exist_ok=True)
         article_list = caixin.download_magazine(s, new_weekly, weekly_path)
         # article_list = [{'href': 'https://weekly.caixin.com/2025-08-15/102352024.html', 'title': '显影｜少年极客的代码嘉年华', 'article_id': '102352024'}]
-        caixin.download_articles(article_list, weekly_path)
+        chrome_path = os.path.join(os.getcwd(), "chrome-win64")
+        caixin.download_articles(article_list, weekly_path, os.path.join(
+            chrome_path, "UserData"), os.path.join(chrome_path, "chrome.exe"))
 
 
 def update(session: requests.Session):

@@ -106,14 +106,16 @@ def download_img(url: str, file_path: str, cookie: str = None, session: requests
         f.write(response.content)
 
 
-def download_articles(article_list: list[article], dir_path: str) -> None:
+def download_articles(article_list: list[article], download_dir_path: str, user_data_dir: str = None, binary_location: str = None) -> None:
     ser = webdriver.ChromeService(executable_path="chromedriver.exe")
     # ser = webdriver.EdgeService(executable_path="msedgedriver.exe")
     # options = webdriver.EdgeOptions()
     options = webdriver.ChromeOptions()
-    user_data_dir = os.path.join(os.getcwd(), "UserData")
-    os.makedirs(user_data_dir, exist_ok=True)
-    options.add_argument("user-data-dir={}".format(user_data_dir))
+    if user_data_dir:
+        os.makedirs(user_data_dir, exist_ok=True)
+        options.add_argument("user-data-dir={}".format(user_data_dir))
+    if binary_location and os.path.exists(binary_location):
+        options.binary_location = binary_location
     try:
         driver = webdriver.Chrome(service=ser, options=options)
         # driver = webdriver.Edge(service=ser)
@@ -122,7 +124,7 @@ def download_articles(article_list: list[article], dir_path: str) -> None:
         time.sleep(60)
         for article in article_list:
             logging.info(article)
-            download_article(driver, article, dir_path)
+            download_article(driver, article, download_dir_path)
         driver.close()
     finally:
         driver.quit()

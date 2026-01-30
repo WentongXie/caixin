@@ -209,6 +209,8 @@ __marimo__/
 UserData/
 topic/
 2025/
+2026/
+chrome-win64/
 *.log
 chromedriver.exe
 index.html

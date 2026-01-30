@@ -20,7 +20,9 @@ def main():
         magazine_path = urllib.parse.urlparse(new_magazine).path[1:]
         os.makedirs(magazine_path, exist_ok=True)
         article_list = caixin.download_magazine(s, new_magazine, magazine_path)
-        caixin.download_articles(article_list, magazine_path)
+        chrome_path = os.path.join(os.getcwd(), "chrome-win64")
+        caixin.download_articles(article_list, magazine_path, os.path.join(
+            chrome_path, "UserData"), os.path.join(chrome_path, "chrome.exe"))
 
 
 def update(session: requests.Session, magazine_url, magazine_title):
@@ -43,10 +45,11 @@ def update(session: requests.Session, magazine_url, magazine_title):
         href = urllib.parse.urlparse(a.get("href")).path[1:]
         a["href"] = href
         img = i.find("img")
-        path = urllib.parse.urlparse(img.get("data-src")).path
-        img_src = urllib.request.pathname2url(
-            os.path.join(href, "cover" + path[path.find("."):]))
-        img["data-src"] = img_src
+        img.decompose()
+        # path = urllib.parse.urlparse(img.get("data-src")).path
+        # img_src = urllib.request.pathname2url(
+        #    os.path.join(href, "cover" + path[path.find("."):]))
+        # img["data-src"] = img_src
         # img["src"]= img_src
     focus.find("div", class_="app").decompose()
     mi = focus.find("div", class_="mi")

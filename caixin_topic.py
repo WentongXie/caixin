@@ -51,7 +51,9 @@ def main():
             make_topic_html(s, topic_articles, topic, basedir)
             download_articles.extend(
                 get_download_articles(articles, topic_articles))
-    download_topic_articles(download_articles, articles, basedir)
+    chrome_path = os.path.join(os.getcwd(), "chrome-win64")
+    download_topic_articles(download_articles, articles, basedir, os.path.join(
+        chrome_path, "UserData"), os.path.join(chrome_path, "chrome.exe"))
 
 
 def get_download_articles(downloaded_articles, topic_articles: list[topic_article]) -> list[topic_article]:
@@ -91,12 +93,14 @@ def make_topic_html(session: requests.Session, topic_articles: list[topic_articl
             title=topic["topic_title"], content=topic_html))
 
 
-def download_topic_articles(download_articles: list[topic_article], downloaded_articles, basedir: str):
+def download_topic_articles(download_articles: list[topic_article], downloaded_articles, basedir: str, user_data_dir: str, binary_location: str) -> None:
     ser = webdriver.ChromeService(executable_path="chromedriver.exe")
     options = webdriver.ChromeOptions()
-    user_data_dir = os.path.join(os.getcwd(), "UserData")
-    os.makedirs(user_data_dir, exist_ok=True)
-    options.add_argument("user-data-dir={}".format(user_data_dir))
+    if user_data_dir:
+        os.makedirs(user_data_dir, exist_ok=True)
+        options.add_argument("user-data-dir={}".format(user_data_dir))
+    if binary_location and os.path.exists(binary_location):
+        options.binary_location = binary_location
     try:
         driver = webdriver.Chrome(service=ser, options=options)
         for i in download_articles:
