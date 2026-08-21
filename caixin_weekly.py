@@ -15,9 +15,11 @@ def main():
                         level=logging.INFO, format=LOG_FORMAT, encoding='utf-8')
     with requests.session() as s:
         s.headers.update(caixin.header)
-        # new_weekly = "https://weekly.caixin.com/2026/cw1190/"
-        new_weekly = update(s)
+        # new_weekly = "https://weekly.caixin.com/2026/cw1217/"
+        dir_path = "weekly"
+        new_weekly = update(s, dir_path)
         weekly_path = urllib.parse.urlparse(new_weekly).path[1:]
+        weekly_path = os.path.join(dir_path, weekly_path)
         os.makedirs(weekly_path, exist_ok=True)
         article_list = caixin.download_magazine(s, new_weekly, weekly_path)
         # article_list = [{'href': 'https://weekly.caixin.com/2025-08-15/102352024.html', 'title': '显影｜少年极客的代码嘉年华', 'article_id': '102352024'}]
@@ -26,7 +28,7 @@ def main():
             chrome_path, "UserData"), os.path.join(chrome_path, "chrome.exe"))
 
 
-def update(session: requests.Session):
+def update(session: requests.Session, index_file_dir):
     rsp = session.get("https://weekly.caixin.com/")
     soup = BeautifulSoup(rsp.text.replace(
         'style="display:none;>', ">"), 'html.parser')
@@ -76,7 +78,9 @@ def update(session: requests.Session):
             j["href"] = urllib.request.pathname2url(os.path.join(
                 href, os.path.basename(urllib.parse.urlparse(j_href).path)))
     wangqi_str = re.sub('style=".*?"', "", str(wangqi))
-    with open("index.html", "w", encoding="utf") as f:
+    os.makedirs(index_file_dir, exist_ok=True)
+    index_file = os.path.join(index_file_dir, "index.html")
+    with open(index_file, "w", encoding="utf") as f:
         f.write(caixin.template.format(
             title="财新周刊", content=str(focus) + wangqi_str))
     return new_weekly_url

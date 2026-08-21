@@ -15,8 +15,10 @@ def main():
                         level=logging.INFO, format=LOG_FORMAT, encoding='utf-8')
     with requests.session() as s:
         s.headers.update(caixin.header)
-        new_magazine = update(s, "https://cnreform.caixin.com/", "中国改革")
+        dir_path = "cnreform"
+        new_magazine = update(s, "https://cnreform.caixin.com/", dir_path, "中国改革")
         magazine_path = urllib.parse.urlparse(new_magazine).path[1:]
+        magazine_path = os.path.join(dir_path, magazine_path)
         os.makedirs(magazine_path, exist_ok=True)
         article_list = caixin.download_magazine(s, new_magazine, magazine_path)
         chrome_path = os.path.join(os.getcwd(), "chrome-win64")
@@ -24,7 +26,7 @@ def main():
             chrome_path, "UserData"), os.path.join(chrome_path, "chrome.exe"))
 
 
-def update(session: requests.Session, magazine_url, magazine_title):
+def update(session: requests.Session, magazine_url, index_file_dir, magazine_title):
     rsp = session.get(magazine_url)
     soup = BeautifulSoup(rsp.text.replace(
         'style="display:none;>', ">"), 'html.parser')
@@ -68,7 +70,9 @@ def update(session: requests.Session, magazine_url, magazine_title):
             j["href"] = urllib.request.pathname2url(os.path.join(
                 href, os.path.basename(urllib.parse.urlparse(j_href).path)))
     wangqi_str = re.sub('style=".*?"', "", str(wangqi))
-    with open("index_{}.html".format(magazine_title), "w", encoding="utf") as f:
+    os.makedirs(index_file_dir, exist_ok=True)
+    index_file = os.path.join(index_file_dir, "index.html")
+    with open(index_file, "w", encoding="utf") as f:
         f.write(caixin.template.format(
             title=magazine_title, content=str(focus) + wangqi_str))
     return new_magazine_url

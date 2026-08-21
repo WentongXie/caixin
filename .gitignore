@@ -214,3 +214,4 @@ chrome-win64/
 *.log
 chromedriver.exe
 index.html
+rclone*
