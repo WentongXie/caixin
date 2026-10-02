@@ -11,6 +11,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
+import base64
 
 
 class article:
@@ -87,6 +88,25 @@ def download_article(session:requests.Session, path, article_id, title):
 
 def download_img(url: str, file_path: str, cookie: str = None, session: requests.Session = None) -> None:
     url = url.strip()
+    
+    # 处理 data URI (base64 编码的图片)
+    if url.startswith("data:image/"):
+        if ";base64," in url:
+            # 提取 base64 数据部分
+            _, encoded = url.split(";base64,", 1)
+            # 解码 base64 数据
+            data = base64.b64decode(encoded)
+            # 确保目录存在
+            dir_name = os.path.dirname(file_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(data)
+            return
+        else:
+            # 非 base64 的 data URI 暂不支持，记录警告
+            logging.warning("Unsupported data URI format (not base64): %s", url[:50])
+            return
     urlparse = urllib.parse.urlparse(url)
     if urlparse.scheme == "":
         urlparse = urlparse._replace(scheme='https')
@@ -121,7 +141,12 @@ def download_articles(article_list: list[article], download_dir_path: str, user_
         # driver = webdriver.Edge(service=ser)
         driver.get(
             "https://u.caixin.com/web/login?url=https%3A%2F%2Fweekly.caixin.com%2F")
-        time.sleep(60)
+        try:
+            WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "auth-name"))
+            )
+        except TimeoutException:
+            time.sleep(60)
         for article in article_list:
             logging.info(article)
             download_article(driver, article, download_dir_path)
